@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>检测统计 - O型圈质量检测系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            success: '#00B42A',
+            danger: '#F53F3F',
+            warning: '#FF7D00',
+            dark: '#1D2129',
+            'gray-light': '#F2F3F5',
+            'gray-medium': '#C9CDD4'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+</head>
+
+<body class="font-inter bg-gray-50 min-h-screen">
+  <header class="bg-white shadow-soft sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-cogs text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-primary">检测统计</h1>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <a href="/" class="text-gray-600 hover:text-primary transition-smooth">
+          <i class="fa fa-home mr-1"></i> 返回首页
+        </a>
+
+        <!-- 用户信息显示区域 -->
+        <div id="user-info" class="hidden">
+          <span class="text-gray-700 mr-3">
+            <i class="fa fa-user-circle mr-1"></i>
+            <span id="username-display"></span>
+          </span>
+          <button id="logout-btn"
+            class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg transition-smooth text-sm">
+            <i class="fa fa-sign-out mr-1"></i>退出登录
+          </button>
+        </div>
+
+        <!-- 登录链接 -->
+        <div id="login-link">
+          <a href="log.html?return=/statistics.html"
+            class="bg-primary text-white px-3 py-2 rounded-lg hover:bg-primary/90 transition-smooth text-sm">
+            <i class="fa fa-sign-in mr-1"></i>登录
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-6">
+    <!-- 统计概览 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-2xl shadow-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-indigo-600 text-sm font-medium">今日检测总数</p>
+            <p class="text-3xl font-bold text-indigo-800" id="today-total">0</p>
+          </div>
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white">
+            <i class="fa fa-cogs text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl shadow-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-green-600 text-sm font-medium">今日通过数</p>
+            <p class="text-3xl font-bold text-green-800" id="today-passed">0</p>
+          </div>
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white">
+            <i class="fa fa-check-circle text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-2xl shadow-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-red-600 text-sm font-medium">今日失败数</p>
+            <p class="text-3xl font-bold text-red-800" id="today-failed">0</p>
+          </div>
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white">
+            <i class="fa fa-times-circle text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-2xl shadow-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-blue-600 text-sm font-medium">平均处理时间</p>
+            <p class="text-3xl font-bold text-blue-800" id="today-avg-time">0.00s</p>
+          </div>
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white">
+            <i class="fa fa-clock-o text-xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <!-- 周统计图表 -->
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center">
+          <i class="fa fa-chart-line text-primary mr-2"></i>最近7天检测趋势
+        </h3>
+        <div class="h-80">
+          <canvas id="weekly-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 通过率饼图 -->
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center">
+          <i class="fa fa-chart-pie text-primary mr-2"></i>今日检测通过率
+        </h3>
+        <div class="h-80">
+          <canvas id="pass-rate-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史统计查询 -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-semibold flex items-center">
+          <i class="fa fa-calendar text-primary mr-2"></i>历史统计查询
+        </h3>
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600">开始日期:</label>
+            <input type="date" id="date-from"
+              class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+          </div>
+          <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600">结束日期:</label>
+            <input type="date" id="date-to"
+              class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+          </div>
+          <button id="query-btn"
+            class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-all duration-300">
+            <i class="fa fa-search mr-2"></i>查询
+          </button>
+          <button id="reset-btn"
+            class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-all duration-300">
+            <i class="fa fa-refresh mr-2"></i>重置
+          </button>
+        </div>
+      </div>
+
+      <!-- 历史统计摘要 -->
+      <div id="history-summary" class="hidden mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div
+            class="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg p-4 text-center">
+            <p class="text-indigo-600 text-sm font-medium">检测总数</p>
+            <p class="text-2xl font-bold text-indigo-800" id="history-total">0</p>
+          </div>
+          <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4 text-center">
+            <p class="text-green-600 text-sm font-medium">通过数量</p>
+            <p class="text-2xl font-bold text-green-800" id="history-passed">0</p>
+          </div>
+          <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-lg p-4 text-center">
+            <p class="text-red-600 text-sm font-medium">失败数量</p>
+            <p class="text-2xl font-bold text-red-800" id="history-failed">0</p>
+          </div>
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 text-center">
+            <p class="text-blue-600 text-sm font-medium">通过率</p>
+            <p class="text-2xl font-bold text-blue-800" id="history-pass-rate">0%</p>
+          </div>
+          <div
+            class="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 text-center">
+            <p class="text-purple-600 text-sm font-medium">平均时间</p>
+            <p class="text-2xl font-bold text-purple-800" id="history-avg-time">0.00s</p>
+          </div>
+          <div
+            class="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4 text-center">
+            <p class="text-orange-600 text-sm font-medium">检测时段</p>
+            <p class="text-sm font-bold text-orange-800" id="history-period">-</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 历史检测记录表格 -->
+      <div id="history-table" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="text-md font-semibold flex items-center">
+            <i class="fa fa-list text-primary mr-2"></i>检测记录列表
+          </h4>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-600">每页显示:</span>
+            <select id="page-size" class="border border-gray-300 rounded px-2 py-1 text-sm">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">ID</th>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">文件名</th>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">检测结果</th>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">检测时间</th>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">操作员</th>
+                <th class="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">处理时间</th>
+              </tr>
+            </thead>
+            <tbody id="history-records">
+              <!-- 记录将通过JavaScript动态添加 -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="flex items-center justify-between mt-4">
+          <div class="text-sm text-gray-600">
+            显示第 <span id="current-page-info">1-20</span> 条，共 <span id="total-records">0</span> 条记录
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="prev-page"
+              class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50">
+              上一页
+            </button>
+            <span class="text-sm text-gray-600">
+              第 <span id="current-page">1</span> 页，共 <span id="total-pages">1</span> 页
+            </span>
+            <button id="next-page"
+              class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50">
+              下一页
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE_URL = '/api';
+    let currentUser = null;
+    let weeklyChart = null;
+    let passRateChart = null;
+
+    // 检查登录状态
+    async function checkLoginStatus() {
+      try {
+        const response = await fetch('/api/check_login', {
+          credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.logged_in) {
+          currentUser = data.user;
+          showUserInfo();
+          loadStatistics();
+        } else {
+          showLoginLink();
+        }
+      } catch (error) {
+        console.error('检查登录状态失败:', error);
+        showLoginLink();
+      }
+    }
+
+    // 显示用户信息
+    function showUserInfo() {
+      document.getElementById('user-info').classList.remove('hidden');
+      document.getElementById('login-link').classList.add('hidden');
+      document.getElementById('username-display').textContent = currentUser.username;
+    }
+
+    // 显示登录链接
+    function showLoginLink() {
+      document.getElementById('user-info').classList.add('hidden');
+      document.getElementById('login-link').classList.remove('hidden');
+      currentUser = null;
+    }
+
+    // 退出登录
+    async function logout() {
+      try {
+        const response = await fetch('/api/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          currentUser = null;
+          showLoginLink();
+          alert('已成功退出登录');
+        } else {
+          alert('退出登录失败，请重试');
+        }
+      } catch (error) {
+        console.error('退出登录失败:', error);
+        alert('退出登录失败，请重试');
+      }
+    }
+
+    // 加载统计数据
+    async function loadStatistics() {
+      await loadDailyStats();
+      await loadWeeklyStats();
+      updatePassRateChart();
+    }
+
+    // 加载每日统计
+    async function loadDailyStats() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/stats/daily`, {
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log('用户未登录，无法获取统计数据');
+            return;
+          }
+          return;
+        }
+
+        const data = await response.json();
+        document.getElementById('today-total').textContent = data.total;
+        document.getElementById('today-passed').textContent = data.passed;
+        document.getElementById('today-failed').textContent = data.failed;
+        document.getElementById('today-avg-time').textContent = `${data.avg_time}s`;
+      } catch (error) {
+        console.error('加载每日统计失败:', error);
+      }
+    }
+
+    // 加载周统计
+    async function loadWeeklyStats() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/stats/weekly?days=7`, {
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log('用户未登录，无法获取周统计数据');
+            return;
+          }
+          return;
+        }
+
+        const data = await response.json();
+        console.log('周统计数据:', data); // 添加调试信息
+        updateWeeklyChart(data.stats);
+      } catch (error) {
+        console.error('加载周统计失败:', error);
+      }
+    }
+
+    // 更新周统计图表
+    function updateWeeklyChart(stats) {
+      const ctx = document.getElementById('weekly-chart').getContext('2d');
+
+      if (weeklyChart) {
+        weeklyChart.destroy();
+      }
+
+      // 如果没有数据，显示空状态
+      if (!stats || stats.length === 0) {
+        console.log('没有周统计数据，显示空状态');
+        // 创建最近7天的日期标签
+        const labels = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          labels.push(date.toISOString().split('T')[0]);
+        }
+
+        weeklyChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: '总检测数',
+                data: new Array(7).fill(0),
+                borderColor: '#165DFF',
+                backgroundColor: 'rgba(22, 93, 255, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '通过数',
+                data: new Array(7).fill(0),
+                borderColor: '#00B42A',
+                backgroundColor: 'rgba(0, 180, 42, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '失败数',
+                data: new Array(7).fill(0),
+                borderColor: '#F53F3F',
+                backgroundColor: 'rgba(245, 63, 63, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1
+                }
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      const labels = stats.map(item => item.date);
+      const totalData = stats.map(item => item.total);
+      const passedData = stats.map(item => item.passed);
+      const failedData = stats.map(item => item.failed);
+
+      console.log('图表数据:', { labels, totalData, passedData, failedData });
+
+      weeklyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '总检测数',
+              data: totalData,
+              borderColor: '#165DFF',
+              backgroundColor: 'rgba(22, 93, 255, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: '通过数',
+              data: passedData,
+              borderColor: '#00B42A',
+              backgroundColor: 'rgba(0, 180, 42, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: '失败数',
+              data: failedData,
+              borderColor: '#F53F3F',
+              backgroundColor: 'rgba(245, 63, 63, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 更新通过率饼图
+    function updatePassRateChart() {
+      const ctx = document.getElementById('pass-rate-chart').getContext('2d');
+
+      if (passRateChart) {
+        passRateChart.destroy();
+      }
+
+      const total = parseInt(document.getElementById('today-total').textContent);
+      const passed = parseInt(document.getElementById('today-passed').textContent);
+      const failed = parseInt(document.getElementById('today-failed').textContent);
+
+      passRateChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['通过', '失败'],
+          datasets: [{
+            data: [passed, failed],
+            backgroundColor: ['#00B42A', '#F53F3F'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    // 历史统计查询相关变量
+    let currentPage = 1;
+    let pageSize = 20;
+    let totalRecords = 0;
+    let totalPages = 1;
+    let currentDateFrom = null;
+    let currentDateTo = null;
+
+    // 查询历史统计
+    async function queryHistoryStats() {
+      const dateFrom = document.getElementById('date-from').value;
+      const dateTo = document.getElementById('date-to').value;
+
+      // 重置分页
+      currentPage = 1;
+      currentDateFrom = dateFrom;
+      currentDateTo = dateTo;
+
+      try {
+        // 获取历史统计摘要
+        await loadHistorySummary(dateFrom, dateTo);
+
+        // 获取历史检测记录
+        await loadHistoryRecords(dateFrom, dateTo, currentPage, pageSize);
+
+        // 显示结果区域
+        document.getElementById('history-summary').classList.remove('hidden');
+        document.getElementById('history-table').classList.remove('hidden');
+
+      } catch (error) {
+        console.error('查询历史统计失败:', error);
+        alert('查询失败，请重试');
+      }
+    }
+
+    // 加载历史统计摘要
+    async function loadHistorySummary(dateFrom, dateTo) {
+      try {
+        let url = `${API_BASE_URL}/stats/history_summary`;
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (params.toString()) url += '?' + params.toString();
+
+        const response = await fetch(url, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            alert('请先登录后再查询历史统计');
+            return;
+          }
+          throw new Error('请求失败');
+        }
+
+        const data = await response.json();
+
+        // 更新统计摘要
+        document.getElementById('history-total').textContent = data.total;
+        document.getElementById('history-passed').textContent = data.passed;
+        document.getElementById('history-failed').textContent = data.failed;
+        document.getElementById('history-pass-rate').textContent = `${data.pass_rate}%`;
+        document.getElementById('history-avg-time').textContent = `${data.avg_time}s`;
+
+        // 更新检测时段
+        let periodText = '-';
+        if (data.first_detection && data.last_detection) {
+          const firstDate = new Date(data.first_detection).toLocaleDateString();
+          const lastDate = new Date(data.last_detection).toLocaleDateString();
+          periodText = `${firstDate} 至 ${lastDate}`;
+        }
+        document.getElementById('history-period').textContent = periodText;
+
+      } catch (error) {
+        console.error('加载历史统计摘要失败:', error);
+        throw error;
+      }
+    }
+
+    // 加载历史检测记录
+    async function loadHistoryRecords(dateFrom, dateTo, page, size) {
+      try {
+        let url = `${API_BASE_URL}/stats/history?limit=${size}&offset=${(page - 1) * size}`;
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (params.toString()) url += '&' + params.toString();
+
+        const response = await fetch(url, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            alert('请先登录后再查询历史统计');
+            return;
+          }
+          throw new Error('请求失败');
+        }
+
+        const data = await response.json();
+
+        // 更新记录表格
+        updateHistoryTable(data.detections);
+
+        // 更新分页信息
+        updatePagination(page, size, data.detections.length);
+
+      } catch (error) {
+        console.error('加载历史检测记录失败:', error);
+        throw error;
+      }
+    }
+
+    // 更新历史记录表格
+    function updateHistoryTable(detections) {
+      const tbody = document.getElementById('history-records');
+      tbody.innerHTML = '';
+
+      if (detections.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="border border-gray-200 px-4 py-8 text-center text-gray-500">
+              暂无检测记录
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      detections.forEach(detection => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+
+        const resultClass = detection.passed ? 'text-green-600' : 'text-red-600';
+        const resultIcon = detection.passed ? 'fa-check-circle' : 'fa-times-circle';
+        const resultText = detection.passed ? '通过' : '失败';
+
+        row.innerHTML = `
+          <td class="border border-gray-200 px-4 py-2 text-sm">${detection.id}</td>
+          <td class="border border-gray-200 px-4 py-2 text-sm">${detection.filename || '-'}</td>
+          <td class="border border-gray-200 px-4 py-2 text-sm">
+            <span class="${resultClass} flex items-center">
+              <i class="fa ${resultIcon} mr-1"></i> ${resultText}
+            </span>
+          </td>
+          <td class="border border-gray-200 px-4 py-2 text-sm">${detection.detected_at || '-'}</td>
+          <td class="border border-gray-200 px-4 py-2 text-sm">${detection.username || '-'}</td>
+          <td class="border border-gray-200 px-4 py-2 text-sm">${detection.process_time ? detection.process_time.toFixed(3) + 's' : '-'}</td>
+        `;
+
+        tbody.appendChild(row);
+      });
+    }
+
+    // 更新分页信息
+    function updatePagination(page, size, recordCount) {
+      currentPage = page;
+      pageSize = size;
+
+      // 计算总页数（这里需要从后端获取总记录数，暂时使用当前页记录数）
+      totalPages = Math.max(1, Math.ceil(recordCount / size));
+
+      // 更新分页显示
+      document.getElementById('current-page').textContent = page;
+      document.getElementById('total-pages').textContent = totalPages;
+
+      const startRecord = (page - 1) * size + 1;
+      const endRecord = Math.min(page * size, recordCount);
+      document.getElementById('current-page-info').textContent = `${startRecord}-${endRecord}`;
+      document.getElementById('total-records').textContent = recordCount;
+
+      // 更新按钮状态
+      document.getElementById('prev-page').disabled = page <= 1;
+      document.getElementById('next-page').disabled = page >= totalPages;
+    }
+
+    // 重置查询
+    function resetHistoryQuery() {
+      document.getElementById('date-from').value = '';
+      document.getElementById('date-to').value = '';
+      document.getElementById('history-summary').classList.add('hidden');
+      document.getElementById('history-table').classList.add('hidden');
+      currentPage = 1;
+      currentDateFrom = null;
+      currentDateTo = null;
+    }
+
+    // 上一页
+    async function prevPage() {
+      if (currentPage > 1) {
+        await loadHistoryRecords(currentDateFrom, currentDateTo, currentPage - 1, pageSize);
+      }
+    }
+
+    // 下一页
+    async function nextPage() {
+      if (currentPage < totalPages) {
+        await loadHistoryRecords(currentDateFrom, currentDateTo, currentPage + 1, pageSize);
+      }
+    }
+
+    // 页面初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 检查登录状态
+      checkLoginStatus();
+
+      // 绑定退出登录按钮事件
+      document.getElementById('logout-btn').addEventListener('click', logout);
+
+      // 绑定查询按钮事件
+      document.getElementById('query-btn').addEventListener('click', queryHistoryStats);
+
+      // 绑定重置按钮事件
+      document.getElementById('reset-btn').addEventListener('click', resetHistoryQuery);
+
+      // 绑定分页按钮事件
+      document.getElementById('prev-page').addEventListener('click', prevPage);
+      document.getElementById('next-page').addEventListener('click', nextPage);
+
+      // 绑定页面大小改变事件
+      document.getElementById('page-size').addEventListener('change', (e) => {
+        pageSize = parseInt(e.target.value);
+        currentPage = 1;
+        if (currentDateFrom || currentDateTo) {
+          loadHistoryRecords(currentDateFrom, currentDateTo, currentPage, pageSize);
+        }
+      });
+
+      // 设置默认日期范围（最近30天）
+      const today = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+
+      document.getElementById('date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+      document.getElementById('date-to').value = today.toISOString().split('T')[0];
+    });
+  </script>
+</body>
+
+</html>

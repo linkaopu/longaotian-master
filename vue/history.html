@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>不合格记录 - O型圈质量检测系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = { theme: { extend: { colors: { primary: '#165DFF', danger: '#F53F3F', dark: '#1D2129', 'gray-light': '#F2F3F5', 'gray-medium': '#C9CDD4' } } } }
+  </script>
+</head>
+
+<body class="font-inter bg-gray-50 min-h-screen">
+  <header class="bg-white shadow-soft sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-cogs text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-primary">不合格记录</h1>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <a href="/" class="text-gray-600 hover:text-primary transition-smooth"><i class="fa fa-home mr-1"></i> 返回首页</a>
+
+        <!-- 用户信息显示区域 -->
+        <div id="user-info" class="hidden">
+          <span class="text-gray-700 mr-3">
+            <i class="fa fa-user-circle mr-1"></i>
+            <span id="username-display"></span>
+          </span>
+          <button id="logout-btn"
+            class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg transition-smooth text-sm">
+            <i class="fa fa-sign-out mr-1"></i>退出登录
+          </button>
+        </div>
+
+        <!-- 登录链接 -->
+        <div id="login-link">
+          <a href="log.html?return=/history.html"
+            class="bg-primary text-white px-3 py-2 rounded-lg hover:bg-primary/90 transition-smooth text-sm">
+            <i class="fa fa-sign-in mr-1"></i>登录
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow-soft p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+          <i class="fa fa-times-circle text-danger"></i>
+          <h2 class="text-lg font-semibold">当日不合格清单</h2>
+        </div>
+        <input type="date" id="datePicker" class="border border-gray-medium rounded px-2 py-1 text-sm" />
+      </div>
+
+      <div id="failure-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+
+      <div class="flex justify-center mt-6 space-x-2">
+        <button id="prevBtn" class="px-3 py-1 border rounded text-sm">上一页</button>
+        <button id="nextBtn" class="px-3 py-1 border rounded text-sm">下一页</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE_URL = 'http://localhost:5000/api';
+    let currentOffset = 0;
+    const pageSize = 24;
+
+    // 登录状态管理
+    let currentUser = null;
+
+    // 检查登录状态
+    async function checkLoginStatus() {
+      try {
+        const response = await fetch('/api/check_login', {
+          credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.logged_in) {
+          currentUser = data.user;
+          showUserInfo();
+        } else {
+          showLoginLink();
+        }
+      } catch (error) {
+        console.error('检查登录状态失败:', error);
+        showLoginLink();
+      }
+    }
+
+    // 显示用户信息
+    function showUserInfo() {
+      document.getElementById('user-info').classList.remove('hidden');
+      document.getElementById('login-link').classList.add('hidden');
+      document.getElementById('username-display').textContent = currentUser.username;
+    }
+
+    // 显示登录链接
+    function showLoginLink() {
+      document.getElementById('user-info').classList.add('hidden');
+      document.getElementById('login-link').classList.remove('hidden');
+      currentUser = null;
+    }
+
+    // 退出登录
+    async function logout() {
+      try {
+        const response = await fetch('/api/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          currentUser = null;
+          showLoginLink();
+          alert('已成功退出登录');
+        } else {
+          alert('退出登录失败，请重试');
+        }
+      } catch (error) {
+        console.error('退出登录失败:', error);
+        alert('退出登录失败，请重试');
+      }
+    }
+
+    async function fetchFailures(dateStr) {
+      const params = new URLSearchParams();
+      if (dateStr) params.set('date', dateStr);
+      params.set('limit', pageSize);
+      params.set('offset', currentOffset);
+      const resp = await fetch(`${API_BASE_URL}/failures?${params.toString()}`, {
+        credentials: 'include'
+      });
+      if (!resp.ok) return { items: [] };
+      return resp.json();
+    }
+
+    function renderItems(items) {
+      const grid = document.getElementById('failure-grid');
+      grid.innerHTML = '';
+      if (!items || items.length === 0) {
+        grid.innerHTML = '<p class="text-gray-500 text-sm">暂无记录</p>';
+        return;
+      }
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'border border-gray-light rounded-lg overflow-hidden bg-white';
+        const imgSrc = item.overlay_image ? `data:image/png;base64,${item.overlay_image}` : '';
+        card.innerHTML = `
+          <div class="bg-gray-light flex items-center justify-center h-40">
+            ${imgSrc ? `<img src="${imgSrc}" class="max-h-40">` : '<span class="text-gray-400 text-sm">无预览</span>'}
+          </div>
+          <div class="p-3 text-sm">
+            <div class="truncate" title="${item.filename || ''}">${item.filename || '-'}</div>
+            <div class="text-gray-500 mt-1">${item.detected_at || ''}</div>
+            <div class="mt-2 flex space-x-2">
+              <a class="text-primary hover:underline text-xs" target="_blank" href="${API_BASE_URL}/failure/${item.id}/image?kind=overlay&raw=1">查看大图</a>
+              <a class="text-gray-600 hover:underline text-xs" target="_blank" href="${API_BASE_URL}/failure/${item.id}/image?kind=original&raw=1">原图</a>
+              <a class="text-gray-600 hover:underline text-xs" target="_blank" href="${API_BASE_URL}/failure/${item.id}/image?kind=processed&raw=1">处理图</a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    async function loadPage() {
+      const dateStr = document.getElementById('datePicker').value;
+      const data = await fetchFailures(dateStr);
+      renderItems(data.items);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 检查登录状态
+      checkLoginStatus();
+
+      // 绑定退出登录按钮事件
+      document.getElementById('logout-btn').addEventListener('click', logout);
+
+      const input = document.getElementById('datePicker');
+      const today = new Date();
+      input.value = today.toISOString().slice(0, 10);
+      input.addEventListener('change', () => { currentOffset = 0; loadPage(); });
+
+      document.getElementById('prevBtn').addEventListener('click', () => {
+        currentOffset = Math.max(0, currentOffset - pageSize);
+        loadPage();
+      });
+      document.getElementById('nextBtn').addEventListener('click', () => {
+        currentOffset += pageSize;
+        loadPage();
+      });
+
+      loadPage();
+    });
+  </script>
+</body>
+
+</html>
